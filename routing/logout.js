@@ -1,5 +1,5 @@
-const logoutRouting = (method, response) => {
-  response.setHeader("Content-Type", "text/html");
+const path = require("path");
+res.sendFile(path.join(__dirname, "../views", "logout.html"));
   response.write("<html>");
   response.write("<head><title>Shop - Logout</title></head>");
   response.write("<body>");
