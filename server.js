@@ -1,40 +1,41 @@
-/*
-  📦 Dependy the Importer  
-  Zaimportuj wszystkie wymagane moduły: path, express, body-parser, logger oraz routing.  
-*/
-const http = require("http");
+const path = require("path");
+const express = require("express");
+const bodyParser = require("body-parser");
+
 const config = require("./config");
-const { requestRouting } = require("./routing/routing");
+const { getInfoLog, getErrorLog } = require("./utils/logger");
 
-const requestListener = (request, response) => {
-  requestRouting(request, response);
-};
+const productRoutes = require("./routing/product");
+const logoutRoutes = require("./routing/logout");
+const killRoutes = require("./routing/kill");
+const homeRoutes = require("./routing/home");
+const { STATUS_CODE } = require("./utils/constants"); // zakładamy, że taki moduł istnieje
 
-const server = http.createServer(requestListener);
+const app = express();
 
-server.listen(config.PORT);
+// Parsowanie danych z formularzy (application/x-www-form-urlencoded)
+app.use(bodyParser.urlencoded({ extended: false }));
 
-/*
-  🏗 Structo the Builder  
-  Utwórz instancję aplikacji express i zapisz ją w stałej app.  
-*/
-/*
-  🏗 Structo the Builder  
-  Zarejestruj middleware body-parser do parsowania ciał formularzy. 
-*/
-/*
-  🏗 Structo the Builder  
-  Dodaj middleware logujący informacje o każdym przychodzącym żądaniu.  
-*/
-/*
-  🏗 Structo the Builder  
-  Zarejestruj middleware obsługujące poszczególne ścieżki.  
-*/
-/*
-  🏗 Structo the Builder  
-    Obsłuż stronę 404 – zwróć plik 404.html i zaloguj błąd.   
-*/
-/*
-  🏗 Structo the Builder  
-    Uruchom serwer i nasłuchuj na porcie z config.js.    
-*/
+// Middleware logujący każde żądanie
+app.use((req, res, next) => {
+  getInfoLog(req);
+  next();
+});
+
+// Middleware dla ścieżek
+app.use("/product", productRoutes);
+app.use("/logout", logoutRoutes);
+app.use("/kill", killRoutes);
+app.use("/", homeRoutes);
+
+// Obsługa strony 404
+app.use((req, res) => {
+  res.status(STATUS_CODE.NOT_FOUND);
+  res.sendFile(path.join(__dirname, "views", "404.html"));
+  getErrorLog(new Error(`Nie znaleziono ścieżki: ${req.url}`));
+});
+
+// Start serwera
+app.listen(config.PORT, () => {
+  console.log(`Serwer działa na porcie ${config.PORT}`);
+});
