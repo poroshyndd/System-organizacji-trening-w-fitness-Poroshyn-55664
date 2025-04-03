@@ -9,20 +9,17 @@ const productRoutes = require("./routing/product");
 const logoutRoutes = require("./routing/logout");
 const killRoutes = require("./routing/kill");
 const homeRoutes = require("./routing/home");
-const { STATUS_CODE } = require("./utils/constants"); // zakładamy, że taki moduł istnieje
+const { STATUS_CODE } = require("./utils/constants"); 
 
 const app = express();
 
-// Parsowanie danych z formularzy (application/x-www-form-urlencoded)
 app.use(bodyParser.urlencoded({ extended: false }));
 
-// Middleware logujący każde żądanie
 app.use((req, res, next) => {
   getInfoLog(req);
   next();
 });
 
-// Middleware dla ścieżek
 app.use("/product", productRoutes);
 app.use("/logout", logoutRoutes);
 app.use("/kill", killRoutes);
