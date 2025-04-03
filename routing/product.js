@@ -1,5 +1,7 @@
-const fileSystem = require("fs");
+const fs = require("fs");
+const path = require("path");
 const { STATUS_CODE } = require("../constants/statusCode");
+const { getProcessLog, getErrorLog } = require("../utils/logger");
 
 const productRouting = (request, response) => {
   const { url, method } = request;
@@ -16,36 +18,21 @@ const productRouting = (request, response) => {
     return renderNewProductPage(response);
   }
 
-  console.warn(`ERROR: requested url ${url} doesn't exist.`);
-  return;
+  getErrorLog(new Error(`Nieobsługiwana ścieżka: ${url}`));
+  response.statusCode = STATUS_CODE.NOT_FOUND;
+  return response.end("404 - Not Found");
 };
 
 const renderAddProductPage = (response) => {
+  const filePath = path.join(__dirname, "../views", "add-product.html");
+  response.statusCode = STATUS_CODE.OK;
   response.setHeader("Content-Type", "text/html");
-  response.write("<html>");
-  response.write("<head><title>Shop - Add product</title></head>");
-  response.write("<body>");
-  response.write("<h1>Add product</h1>");
-  response.write("<form action='/product/add' method='POST'>");
-  response.write(
-    "<br /><label>Name<br /><input type='text' name='name'></label>"
-  );
-  response.write(
-    "<br /><label>Description<br /><input type='text' name='description'></label>"
-  );
-  response.write("<br /><button type='submit'>Add</button>");
-  response.write("</form>");
-  response.write(
-    "<nav><a href='/'>Home</a><br /><a href='/product/new'>Newest product</a><br /><a href='/logout'>Logout</a></nav>"
-  );
-  response.write("</body>");
-  response.write("</html>");
-
-  return response.end();
+  getProcessLog("Rendering add-product page");
+  return response.sendFile ? response.sendFile(filePath) : fs.createReadStream(filePath).pipe(response);
 };
 
 const renderNewProductPage = (response) => {
-  fileSystem.readFile("./product.txt", "utf-8", (err, data) => {
+  fs.readFile("product.txt", "utf-8", (err, data) => {
     response.setHeader("Content-Type", "text/html");
     response.write("<html>");
     response.write("<head><title>Shop - Newest product</title></head>");
@@ -56,9 +43,11 @@ const renderNewProductPage = (response) => {
     );
 
     if (err) {
+      getErrorLog(err);
       response.write("<br /><div>No new products available.</div>");
     } else {
-      response.write(`<br /><div>New product data - ${splittedData}</div>`);
+      getProcessLog("Displaying newest product");
+      response.write(`<br /><div>New product data - ${data}</div>`);
     }
 
     response.write("</body>");
@@ -77,20 +66,23 @@ const addNewProduct = (request, response) => {
     const parsedBody = Buffer.concat(body).toString();
     const formData = parsedBody.split("&").map((entry) => {
       const [key, value] = entry.split("=");
-
       return `${key}: ${decodeURIComponent(value)}`;
     });
 
-    fileSystem.writeFile(
-      "product.txt",
-      `${formData[0]}, ${formData[1]}`,
-      (err) => {
-        response.statusCode = STATUS_CODE.FOUND;
-        response.setHeader("Location", "/product/new");
+    const content = formData.join(", ");
 
-        return response.end();
+    fs.writeFile("product.txt", content, (err) => {
+      if (err) {
+        getErrorLog(err);
+        response.statusCode = STATUS_CODE.INTERNAL_SERVER_ERROR;
+        return response.end("Błąd zapisu produktu.");
       }
-    );
+
+      getProcessLog("Produkt został zapisany");
+      response.statusCode = STATUS_CODE.FOUND;
+      response.setHeader("Location", "/product/new");
+      return response.end();
+    });
   });
 };
 
