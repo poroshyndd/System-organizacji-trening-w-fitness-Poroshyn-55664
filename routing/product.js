@@ -1,53 +1,39 @@
-const express = require("express");
-const fs = require("fs");
-const path = require("path");
-
-const { STATUS_CODE } = require("../constants/statusCode");
-const renderNewProductPage = require("../views/renderNewProductPage");
-const { getProcessLog, getErrorLog } = require("../utils/logger");
-
-const router = express.Router();
-
-router.get("/add", (req, res) => {
-  getProcessLog("Rendering add-product.html");
-
-  res.status(STATUS_CODE.OK).sendFile(
-    path.join(__dirname, "../views", "add-product.html")
-  );
-});
-
-router.post("/add", (req, res) => {
-  const { name, description } = req.body;
-
-  if (!name || !description) {
-    getErrorLog(new Error("Brak danych w formularzu"));
-    return res.status(STATUS_CODE.BAD_REQUEST).send("Wszystkie pola są wymagane.");
+class Product {
+  constructor(name, description) {
+    this.name = name;
+    this.description = description;
   }
 
-  const data = `name: ${name}, description: ${description}`;
 
-  fs.writeFile("product.txt", data, (err) => {
-    if (err) {
-      getErrorLog(err);
-      return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).send("Błąd zapisu pliku.");
+  static #products = [];
+
+
+  static getAll() {
+    return this.#products;
+  }
+
+  static add(product) {
+    this.#products.push(product);
+  }
+
+  static findByName(name) {
+    return this.#products.find(product => product.name === name);
+  }
+
+  static deleteByName(name) {
+    const index = this.#products.findIndex(product => product.name === name);
+    if (index !== -1) {
+      return this.#products.splice(index, 1)[0];
     }
+    return null; 
+  }
 
-    getProcessLog("Zapisano nowy produkt.");
-    res.status(STATUS_CODE.FOUND).redirect("/product/new");
-  });
-});
-
-router.get("/new", (req, res) => {
-  fs.readFile("product.txt", "utf-8", (err, data) => {
-    if (err) {
-      getErrorLog(err);
-    } else {
-      getProcessLog("Wczytano nowy produkt.");
+  static getLast() {
+    if (this.#products.length > 0) {
+      return this.#products[this.#products.length - 1];
     }
+    return null;
+  }
+}
 
-    const html = renderNewProductPage(data, !!err);
-    res.status(STATUS_CODE.OK).send(html);
-  });
-});
-
-module.exports = router;
+module.exports = Product;
